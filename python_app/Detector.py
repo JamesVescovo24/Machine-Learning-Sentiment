@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix,accuracy_score, precision_score, recall_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -75,6 +75,35 @@ def prebuilt_model(X_test):
             predictions.append('neutral')
     return np.array(predictions)
 
+def evaluate_model(X,y,model,k=5):
+    skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
+    accuracies = []
+    precisions = []
+    recalls = []
+    confusions = []
+
+    for train_index, test_index in skf.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        pred = my_model(X_train, y_train, X_test, model)
+
+        accuracy = accuracy_score(y_test,pred)
+        precision = precision_score(y_test,pred, average=None)
+        recall = recall_score(y_test,pred,average=None)
+        confusion = confusion_matrix(y_test,pred)
+
+        accuracies.append(accuracy)
+        precisions.append(precision)
+        recalls.append(recall)
+        confusions.append(confusion)
+
+    avg_accuracy = np.mean(accuracies)
+    avg_precision = np.mean(precisions, axis=0)
+    avg_recall = np.mean(recalls, axis=0)
+    sum_confusion = np.sum(confusions, axis=0)
+
+    return avg_accuracy, avg_precision, avg_recall, sum_confusion
 
 def my_model(X_train, y_train, X_test, model):
     vector = CountVectorizer()
@@ -116,14 +145,17 @@ def main():
             print("2- SVM")
             model = input("Enter Model: ").strip()
 
-            X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y,test_size=.4)
+            #OLD VERSION:
+            # X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y,test_size=.4)
             
-            pred = my_model(X_train, y_train, X_test, model)
+            # pred = my_model(X_train, y_train, X_test, model)
 
-            accuracy = accuracy_score(y_test,pred)
-            precision = precision_score(y_test,pred, average=None)
-            recall = recall_score(y_test,pred,average=None)
-            confusion = confusion_matrix(y_test,pred)
+            # accuracy = accuracy_score(y_test,pred)
+            # precision = precision_score(y_test,pred, average=None)
+            # recall = recall_score(y_test,pred,average=None)
+            
+            #NEW VERSION WITH K-FOLD CROSS VALIDATION
+            accuracy, precision, recall, confusion = evaluate_model(X, y, model, k=5)
             print("Accuracy: ", accuracy)
             print("Precision: ", precision)
             print("Recall: ", recall)
