@@ -4,7 +4,7 @@ import seaborn as sb
 import pandas as pd
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix,accuracy_score, precision_score, recall_score
+from sklearn.metrics import confusion_matrix,accuracy_score, precision_score, recall_score, f1_score 
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -75,35 +75,41 @@ def prebuilt_model(X_test):
             predictions.append('neutral')
     return np.array(predictions)
 
-def evaluate_model(X,y,model,k=5):
+def evaluate_model(X,y,model,type=0,k=5):
     skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
     accuracies = []
     precisions = []
     recalls = []
     confusions = []
+    f1_scores = []
 
     for train_index, test_index in skf.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        pred = my_model(X_train, y_train, X_test, model)
+        if type == 0:
+            pred = my_model(X_train, y_train, X_test, model)
+        elif type == 1:
+            pred = prebuilt_model(X_test)
 
         accuracy = accuracy_score(y_test,pred)
         precision = precision_score(y_test,pred, average=None)
         recall = recall_score(y_test,pred,average=None)
         confusion = confusion_matrix(y_test,pred)
+        f1 = f1_score(y_test, pred, average=None)
 
         accuracies.append(accuracy)
         precisions.append(precision)
         recalls.append(recall)
         confusions.append(confusion)
+        f1_scores.append(f1)
 
     avg_accuracy = np.mean(accuracies)
     avg_precision = np.mean(precisions, axis=0)
     avg_recall = np.mean(recalls, axis=0)
     sum_confusion = np.sum(confusions, axis=0)
-
-    return avg_accuracy, avg_precision, avg_recall, sum_confusion
+    avg_f1 = np.mean(f1_scores, axis=0) 
+    return avg_accuracy, avg_precision, avg_recall, sum_confusion, avg_f1
 
 def my_model(X_train, y_train, X_test, model):
     vector = CountVectorizer()
@@ -155,11 +161,12 @@ def main():
             # recall = recall_score(y_test,pred,average=None)
             
             #NEW VERSION WITH K-FOLD CROSS VALIDATION
-            accuracy, precision, recall, confusion = evaluate_model(X, y, model, k=5)
+            accuracy, precision, recall, confusion, f1 = evaluate_model(X, y, model, type=0,k=5)
             print("Accuracy: ", accuracy)
             print("Precision: ", precision)
             print("Recall: ", recall)
             print("Confusion Matrix: ", confusion)
+            print("F1 Score: ", f1)
             print()
 
             display(confusion, precision, recall)
@@ -188,33 +195,28 @@ def main():
             print("2- SVM")
             model = input("Enter Model: ").strip()
 
-            X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y,test_size=.4)
-            
-            pred = my_model(X_train, y_train, X_test, model)
-
             print("MY DETECTOR")
-            accuracy = accuracy_score(y_test,pred)
-            precision = precision_score(y_test,pred, average=None)
-            recall = recall_score(y_test,pred,average=None)
-            confusion = confusion_matrix(y_test,pred)
+            accuracy, precision, recall, confusion, f1 = evaluate_model(X, y, model, type=0, k=5)
             print("Accuracy: ", accuracy)
             print("Precision: ", precision)
             print("Recall: ", recall)
             print("Confusion Matrix: ", confusion)
-
-            v_pred = prebuilt_model(X_test)
+            print("F1 Score: ", f1)
+            print()
 
             print("VADER")
-            v_accuracy = accuracy_score(y_test,v_pred)
-            v_precision = precision_score(y_test,v_pred,average=None)
-            v_recall = recall_score(y_test,v_pred,average=None)
-            v_confusion = confusion_matrix(y_test,v_pred)
+            v_accuracy, v_precision, v_recall, v_confusion, v_f1 = evaluate_model(X, y, model, type=1, k=5)
             print("Vader Accuracy: ", v_accuracy)
             print("Vader Precision: ", v_precision)
             print("Vader Recall: ", v_recall)
             print("Confusion Matrix: ", v_confusion)
-
-            print(f"VADER is {v_accuracy-accuracy} more accurate than my model")
+            print("F1 Score: ", v_f1)
+            print()
+            
+            if v_accuracy > accuracy:
+                print(f"VADER is {v_accuracy-accuracy} more accurate than my model")
+            else:
+                print(f"My model is {accuracy-v_accuracy} more accurate than VADER")
             print()
         elif version == 'q':
             print("Goodbye!")
