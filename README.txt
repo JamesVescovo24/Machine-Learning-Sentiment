@@ -8,7 +8,7 @@ a Linear Regression algorithm.
 
 Before Running:
 Make sure you have all the necessary python packages installed
-such as numpy, pnadas, seaborn, etc.
+such as numpy, pandas, seaborn, etc.
 
 When you run the file for the first time, write:
 - nltk.download('punkt') 
